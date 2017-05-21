@@ -1,0 +1,191 @@
+/*
+ * CUP specification for the parser for a simple demo language.
+ * Change this into the parser for your implementation of MiniJava.
+ * CSE 401/P501 Au11.
+ */
+
+package Parser;
+
+import AST.*;
+import java.util.*;
+import java_cup.runtime.*;
+
+/* Code in the following section is included in the generated parser */
+
+parser code {:
+  /* Override default error message routine to handle line numbers correctly */
+  /* This routine is also called in the process of handling fatal errors. */
+
+  /** Report a non fatal error (or warning).  This method takes a message 
+   *  string and an additional object (to be used by specializations 
+   *  implemented in subclasses).  Prints the same simple error message
+   *  as the base class version, but correctly labels the line number.
+   *
+   * @param message an error message.
+   * @param info    an extra object reserved for use by specialized subclasses.
+   */
+  public void report_error(String message, Object info)
+    {
+      System.err.print(message);
+      System.err.flush();
+      if (info instanceof Symbol)
+	if (((Symbol)info).left != -1)
+	  System.err.println(" at line " + ((Symbol)info).left +
+			     " of input");
+	else System.err.println("");
+      else System.err.println("");
+    }
+:};  
+
+/* end of code included in generated parser
+
+
+/* Terminals (tokens returned by the scanner) */
+
+/* reserved words: */
+terminal CLASS,PUBLIC,STATIC,VOID,MAIN,STRING,CLASS,EXTENDS,RETURN,INTEGER,BOOLEANO,IF,ELSE
+         ,WHILE,SYSO,LENGTH,TRUE,FALSE,THIS,NEW;
+
+/* operators: */
+terminal PLUS, ASSIGN, MINUS, MULTI, LESS,AND,NEGATION;
+
+/* delimiters: */
+terminal LPAREN, RPAREN, LCOCHETE, RCOCHETE,LCHAVES,RCHAVES,VIRGULA,SCOLON,DOT;
+
+/* tokens with values: */
+terminal String IDENTIFIER;
+terminal Integer INTEGER_LITERAL;
+
+
+/* Nonterminals */
+
+nonterminal Program Program;
+nonterminal MainClass MainClassStatement;
+nonterminal ClassDeclList ClassDeclListStatement;
+nonterminal ClassDecl ClassDeclStatement;
+nonterminal ClassDeclSimple ClassDeclSimpleStatement;
+nonterminal ClassDeclExtends ClassDeclExtendsStatement;
+nonterminal VarDeclList VarDeclListStatement;
+nonterminal VarDecl VarDeclStatement;
+nonterminal MethodDeclList MethodDeclListStatement;
+nonterminal MethodDecl MethodDeclStatement;
+nonterminal FormalList FormalListStatement;
+nonterminal Formal FormalStatement;
+nonterminal Exp ExpStatement;
+nonterminal Type TypeStatement;
+nonterminal Statement Statement;
+nonterminal Assign AssignStatement;
+nonterminal Display DisplayStatement;
+nonterminal Exp Expression;
+nonterminal Identifier Identifier;
+
+
+/* Precedence declarations */
+
+precedence left PLUS;
+
+
+/* Productions */
+
+Program ::= MainClassStatement:m ClassDeclListStatement:l
+            {: Program p = new Program(m,l,mleft);
+               RESULT = p; :};
+
+MainClassStatement  ::= CLASS IDENTIFIER:id1 LCHAVES PUBLIC VOID MAIN LPAREN STRING LCOCHETE RCOCHETE IDENTIFIER:id2 RPAREN LCHAVES Statement:s RCHAVES RCHAVES
+                {:  MainClass m = new MainClass(id1,id2,s,id1left);
+                    RESULT = m; :};
+
+ClassDeclListStatement ::= ClassDeclStatement:c
+                {:
+                    ClassDeclList l= new ClassDeclList(cleft);
+                    l.add(c);
+                    RESULT=l;
+                :}
+                | ClassDeclListStatement:c1 ClassDeclStatement:c2
+                 {:
+                   c1.add(c2);
+                    RESULT=c1;
+                 :}
+                ;
+
+ClassDeclStatement ::= ClassDeclSimpleStatement:s
+                       {:
+                            RESULT=s;
+                       :}
+                       |ClassDeclExtendsStatement:s
+                        {:
+                            RESULT=s;
+                        :};
+
+ClassDeclSimpleStatement ::= CLASS IDENTIFIER:id LCHAVES VarDeclListStatement:v MethodDeclListStatement:m RCHAVES
+                        {:
+                             ClassDeclSimple s = new ClassDeclSimple(id,v,m,idleft);
+                             RESULT=s;
+                        :};
+ClassDeclExtendsStatement ::= CLASS IDENTIFIER:id1 LPAREN EXTENDS IDENTIFIER:id2 RPAREN LCHAVES VarDeclListStatement:v MethodDeclListStatement:m RCHAVES
+                        {:
+                            ClassDeclExtends e = new ClassDeclExtends(id1,id2,v,m,id1left);
+                            RESULT=e;
+                        :};
+VarDeclListStatement ::= VarDeclStatement:v
+                        {:
+                            VarDeclList list = new VarDeclList(vleft);
+                            RESULT=list;
+                        :}
+                        | VarDeclListStatement:vl VarDeclStatement:v
+                        {:
+                            vl.add(v);
+                            RESULT=vl;
+                        :};
+VarDeclStatement ::= TypeStatement:t Identifier:id SCOLON;
+                        {:
+                            VarDecl var = new VarDecl(t,id,tleft);
+                            RESULT = var;
+                        :};
+MethodDeclListStatement ::= MethodDeclStatement:m
+                        {:
+                            MethodDeclListStatement list= new MethodDeclListStatement(mleft);
+                            list.add(m);
+                            RESULT = list;
+                        :}
+                        | MethodDeclListStatement:m1 MethodDeclStatement:s
+                          {:
+                             m1.add(s);
+                             RESULT=m1;
+                          :};
+
+MethodDeclStatement ::= PUBLIC TypeStatement:t IDENTIFIER:id1 LPAREN FormalListStatement:f RPAREN LCHAVES VarDeclList:v StatementList:s RETURN ExpStatement:e SCOLON RCHAVES
+                        {:
+                            MethodDecl d= new MethodDecl(id1,f,v,s,e,id1left);
+                            RESULT=d;
+                        :};
+TypeStatement ::= INTEGER:i
+                   {:
+                        RESULT=new IntegerType(ileft);
+                   :}
+                   |BOOLEAN:b
+                   {:
+                         RESULT=new BooleanType(bleft);
+                   :}
+                   |INTEGER:i LCOCHETE RCOCHETE
+                   {:
+                         RESULT=new IntArrayType(ileft);
+                   :}
+                   |IDENTIFIER:id
+                        RESULT=new IdentifierType(idleft)
+                   ;
+AssignStatement ::= Identifier:id BECOMES Expression:expr SEMICOLON
+                    {: RESULT = new Assign(id, expr, idleft); :};
+
+Identifier  ::= IDENTIFIER:id
+                {: RESULT = new Identifier(id, idleft); :};
+
+DisplayStatement ::= DISPLAY:d Expression:expr SEMICOLON
+                     {: RESULT = new Display(expr, dleft); :};
+
+Expression    ::= IDENTIFIER:name
+            {: RESULT = new IdentifierExp(name, nameleft); :}
+        | Expression:arg1 PLUS Expression:arg2
+            {: RESULT = new Plus(arg1, arg2, arg1left); :}
+        | LPAREN Expression:expr RPAREN
+            {: RESULT = expr; :};
